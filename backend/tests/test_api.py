@@ -424,3 +424,17 @@ def test_cors_origins_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cors_origins() == ["http://localhost:5173", "https://demandbench.example"]
     monkeypatch.delenv("DEMANDBENCH_CORS_ORIGINS")
     assert "http://localhost:5173" in cors_origins()
+
+
+def test_port_prefers_platform_port_then_setting_then_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from demandbench.serving.__main__ import default_port
+
+    monkeypatch.delenv("PORT", raising=False)
+    monkeypatch.delenv("DEMANDBENCH_PORT", raising=False)
+    assert default_port() == 8020
+    monkeypatch.setenv("DEMANDBENCH_PORT", "9000")
+    assert default_port() == 9000
+    monkeypatch.setenv("PORT", "10000")
+    assert default_port() == 10000

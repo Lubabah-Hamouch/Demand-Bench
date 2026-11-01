@@ -1,0 +1,11 @@
+# Build context for backend/Dockerfile (the repository root). Allowlist: only what the
+# API image needs is sent to Docker. The frontend image builds from frontend/ with its
+# own .dockerignore.
+**
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/.python-version
+!backend/src/
+!artifacts/lightgbm/
+**/__pycache__
+**/*.py[cod]

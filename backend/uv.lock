@@ -319,6 +319,9 @@ modeling = [
 ]
 serving = [
     { name = "fastapi" },
+    { name = "lightgbm" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pydantic" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -337,7 +340,9 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'serving'", specifier = ">=0.115" },
     { name = "kaggle", marker = "extra == 'data'", specifier = ">=1.6" },
     { name = "lightgbm", marker = "extra == 'modeling'", specifier = ">=4.5" },
+    { name = "lightgbm", marker = "extra == 'serving'", specifier = ">=4.5" },
     { name = "numpy", marker = "extra == 'modeling'", specifier = ">=1.26" },
+    { name = "numpy", marker = "extra == 'serving'", specifier = ">=1.26" },
     { name = "pandas", marker = "extra == 'modeling'", specifier = ">=2.2" },
     { name = "polars", specifier = ">=1.10" },
     { name = "prophet", marker = "extra == 'modeling'", specifier = ">=1.1.6" },

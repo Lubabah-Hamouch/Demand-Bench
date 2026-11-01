@@ -21,10 +21,13 @@ modeling = [
     "numpy>=1.26",
     "pandas>=2.2",
 ]
+# Everything the API needs at runtime (it scores with LightGBM), without Prophet etc.
 serving = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
+    "lightgbm>=4.5",
+    "numpy>=1.26",
 ]
 
 [dependency-groups]

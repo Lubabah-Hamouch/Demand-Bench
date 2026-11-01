@@ -1,0 +1,30 @@
+# Local stack: the API on http://localhost:8020 and the dashboard on http://localhost:8080.
+#
+#   docker compose up --build
+#
+# The dashboard runs in the browser, so it reaches the API at the host address
+# (localhost:8020), and the API must allow the dashboard's host origin (CORS).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      PORT: "8020"
+      DEMANDBENCH_CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+    ports:
+      - "8020:8020"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: "http://localhost:8020"
+    environment:
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy

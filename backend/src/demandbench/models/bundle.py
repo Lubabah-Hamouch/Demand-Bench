@@ -2,7 +2,7 @@
 
 A bundle directory holds:
 
-- {tweedie,q10,q50,q90}.txt   LightGBM boosters (text format)
+- {tweedie,q10,q50,q90}.txt.gz LightGBM boosters (text format, gzipped: ~4x smaller)
 - metadata.json               feature order, categorical vocabulary, training window,
                               hyperparameters
 - importance.csv              gain-based feature importance for every booster
@@ -21,6 +21,7 @@ sorted by store_id, item_id, date, so a series' rows are adjacent); everything e
 loaded into memory.
 """
 
+import gzip
 import json
 from dataclasses import dataclass, field
 from datetime import date
@@ -31,6 +32,11 @@ import lightgbm as lgb
 import polars as pl
 
 from demandbench.models.lightgbm_model import BOOSTER_NAMES, QuantileScale
+
+
+def booster_file(name: str) -> str:
+    return f"{name}.txt.gz"
+
 
 DATA_FILES = ["daily_recent.parquet", "sales_history.parquet"]
 BACKTEST_FILE = "backtest_series.parquet"
@@ -85,7 +91,8 @@ class ModelBundle:
     def save(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         for name, booster in self.boosters.items():
-            booster.save_model(str(directory / f"{name}.txt"))
+            with gzip.open(directory / booster_file(name), "wt", encoding="utf-8") as f:
+                f.write(booster.model_to_string())
         (directory / "metadata.json").write_text(json.dumps(self.metadata, indent=2))
         self.importance.write_csv(directory / "importance.csv")
         self.series.write_parquet(directory / "series.parquet")
@@ -105,7 +112,7 @@ class ModelBundle:
     @classmethod
     def load(cls, directory: Path, require_data_files: bool = True) -> "ModelBundle":
         required = [
-            *(f"{n}.txt" for n in BOOSTER_NAMES),
+            *(booster_file(n) for n in BOOSTER_NAMES),
             "metadata.json",
             "importance.csv",
             "series.parquet",
@@ -119,7 +126,10 @@ class ModelBundle:
                 "Run demandbench.models.train_final first."
             )
         metadata = json.loads((directory / "metadata.json").read_text())
-        boosters = {n: lgb.Booster(model_file=str(directory / f"{n}.txt")) for n in BOOSTER_NAMES}
+        boosters = {}
+        for name in BOOSTER_NAMES:
+            with gzip.open(directory / booster_file(name), "rt", encoding="utf-8") as f:
+                boosters[name] = lgb.Booster(model_str=f.read())
         for name, booster in boosters.items():
             if booster.feature_name() != metadata["features"]:
                 raise ValueError(f"{name} booster features do not match metadata.json")
