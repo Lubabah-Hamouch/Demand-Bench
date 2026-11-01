@@ -183,7 +183,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
     })
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err
+    // Checked by name: the error may come from another realm's DOMException.
+    if (err instanceof Error && err.name === 'AbortError') throw err
     // fetch rejects both when nothing is listening and when CORS blocks the response.
     throw new ApiError(0, `Cannot reach the DemandBench API at ${API_BASE_URL}.`)
   }

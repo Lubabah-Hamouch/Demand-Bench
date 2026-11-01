@@ -97,3 +97,15 @@ curl http://127.0.0.1:8020/model/importance
 ```
 
 What-if scenarios move the forecast in the expected direction by construction: the models are monotone-constrained, so a lower price or an active promo never lowers the forecast and a higher price never raises it. The size of the response is learned across all items rather than measured for each item, so treat it as indicative, especially for items whose price has rarely changed.
+
+## Dashboard
+
+The React dashboard in `frontend/` calls the API directly (`VITE_API_BASE_URL`, default `http://localhost:8020`). With the API running, from `frontend/`:
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run check      # lint (oxlint), typecheck (tsc), tests (Vitest)
+```
+
+The tests mock the API with MSW using responses shaped like the real endpoints, so they need neither the API nor the data.
