@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/* Ledger palette and type. Recharts needs literal colors, so src/theme.ts mirrors the
+   color values below; keep the two in sync. */
+@theme {
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-brand: #0b5a35;
+  --color-brand-tint: #e5f0e9;
+  --color-on-brand: #cfe9da;
+  --color-on-brand-muted: #a8d8bc;
+  --color-coral: #ff5a36;
+  --color-coral-deep: #c2391b;
+  --color-ink: #10241a;
+  --color-muted: #4b5e54;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f4f8f5;
+  --color-rule: #d6e2da;
+  --color-ghost: #8c9a92;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-surface);
+  }
+  body {
+    margin: 0;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-coral);
+    outline-offset: 2px;
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+@utility kicker {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
