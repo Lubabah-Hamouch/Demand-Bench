@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Forecast, History, SeriesBacktest, SeriesInfo } from '../api/client'
 import { describeSeries, longDate, money, num, shortDate, TIER_LABEL } from '../lib/format'
+import { GLOSSARY, type Explanation } from '../lib/glossary'
+import { Explain } from './Explain'
 import { Skeleton } from './Status'
 
 interface Props {
@@ -19,39 +21,50 @@ interface Props {
 
 const total = (f: Forecast, key: 'forecast' | 'lower' | 'upper') => f.points.reduce((s, p) => s + p[key], 0)
 
+interface Detail {
+  label: string
+  value: string
+  tech: string
+  explain?: Explanation
+}
+
 /**
  * This series' own backtest error and bias. When the backtest has no usable figure for
  * the series it says so, rather than showing the all-series number in its place.
  */
-function backtestDetails(backtest: SeriesBacktest | null | 'error') {
+function backtestDetails(backtest: SeriesBacktest | null | 'error'): Detail[] {
   if (backtest === null) {
     return [
-      { label: 'Backtest error, this series', value: '…', tech: 'loading' },
-      { label: 'Forecast ÷ actual in backtests', value: '…', tech: 'loading' },
+      { label: 'Backtest error, this series', value: '…', tech: 'loading', explain: GLOSSARY.seriesWape },
+      { label: 'Forecast ÷ actual in backtests', value: '…', tech: 'loading', explain: GLOSSARY.seriesBias },
     ]
   }
   if (backtest === 'error') {
-    return [{ label: 'Backtest for this series', value: 'Not available', tech: 'could not load backtest results' }]
+    return [{ label: 'Backtest for this series', value: 'Not available', tech: 'could not load backtest results', explain: GLOSSARY.seriesWape }]
   }
   const overallWape = backtest.overall_wape === null ? '' : ` · all series ${num(backtest.overall_wape, 3)}`
   const overallBias = backtest.overall_bias === null ? '' : ` · all series ${num(backtest.overall_bias * 100, 1)}%`
   if (backtest.wape === null || backtest.bias === null) {
-    return [{ label: 'Backtest for this series', value: 'Not available', tech: backtest.reason ?? 'no result for this series' }]
+    return [
+      { label: 'Backtest for this series', value: 'Not available', tech: backtest.reason ?? 'no result for this series', explain: GLOSSARY.seriesWape },
+    ]
   }
   const window =
     backtest.window_start && backtest.window_end
       ? `${shortDate(backtest.window_start)}–${shortDate(backtest.window_end)}`
-      : `${backtest.n_folds} folds`
+      : `${backtest.n_folds} backtests`
   return [
     {
       label: 'Backtest error, this series',
       value: num(backtest.wape, 3),
       tech: `WAPE, ${backtest.n_folds} × 28 days, ${window}${overallWape}`,
+      explain: GLOSSARY.seriesWape,
     },
     {
       label: 'Forecast ÷ actual in backtests',
       value: `${num(backtest.bias * 100, 1)}%`,
       tech: `${num(backtest.forecast_units ?? 0)} of ${num(backtest.actual_units ?? 0)} units${overallBias}`,
+      explain: GLOSSARY.seriesBias,
     },
   ]
 }
@@ -84,13 +97,14 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
     )
   }
 
-  const details =
+  const details: Detail[] | null =
     shown && history
       ? [
           {
             label: 'Likely range, next four weeks',
             value: `${num(total(shown, 'lower'))}–${num(total(shown, 'upper'))} units`,
             tech: 'sum of daily p10 and p90',
+            explain: GLOSSARY.totalRange,
           },
           {
             label: 'Sold in the last four weeks',
@@ -101,6 +115,7 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
             label: 'Unusual days, last 180',
             value: num(history.n_anomalies),
             tech: '|z| > 3 vs prior 28 days',
+            explain: GLOSSARY.unusualDay,
           },
           {
             label: 'On sale since',
@@ -147,7 +162,10 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
           {details
             ? details.map((d) => (
                 <div key={d.label} className="border-b border-r border-rule px-4 py-3.5">
-                  <dt className="text-[12.5px] text-muted">{d.label}</dt>
+                  <dt className="text-[12.5px] text-muted">
+                    <span>{d.label}</span>
+                    {d.explain && <Explain {...d.explain} />}
+                  </dt>
                   <dd className="tabular mt-1 text-xl font-semibold">{d.value}</dd>
                   <dd className="mt-0.5 text-xs leading-snug text-muted">{d.tech}</dd>
                 </div>

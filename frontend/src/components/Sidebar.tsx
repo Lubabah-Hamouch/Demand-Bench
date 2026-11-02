@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { api, isOffline, type SeriesInfo, type SeriesQuery, type VolumeTier } from '../api/client'
 import { describeSeries, num, STATE_CODES } from '../lib/format'
+import { GLOSSARY } from '../lib/glossary'
 import { useAsync, useDebounced } from '../lib/hooks'
+import { Explain } from './Explain'
 import { ErrorNote, Skeleton } from './Status'
 
 const PAGE_SIZE = 25
@@ -77,7 +79,11 @@ export function Sidebar({ selected, onSelect, nSeries }: Props) {
           placeholder="Foods 3, CA_1, Hobbies…"
           className="mt-1.5 min-h-11 w-full rounded-md bg-white px-3 text-[15px] text-ink placeholder:text-muted"
         />
-        <div role="group" aria-label="Volume tier" className="mt-3 flex flex-wrap gap-1.5">
+        <div className="mt-3 flex items-center text-[13px] text-on-brand">
+          Sales volume
+          <Explain {...GLOSSARY.volumeTier} tone="onBrand" />
+        </div>
+        <div role="group" aria-label="Volume tier" className="mt-1.5 flex flex-wrap gap-1.5">
           {TIERS.map((t) => {
             const active = tier === t.value
             return (

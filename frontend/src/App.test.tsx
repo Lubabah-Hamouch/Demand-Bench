@@ -83,9 +83,9 @@ describe('App: switching series (integration)', () => {
     const user = userEvent.setup()
     await renderLoaded()
     await user.click(screen.getByRole('button', { name: 'Show the numbers behind this' }))
-    const details = await screen.findByText('Backtest error, this series')
-    expect(details.parentElement).toHaveTextContent('0.432')
-    expect(details.parentElement).toHaveTextContent('all series 0.755')
+    const details = (await screen.findByText('Backtest error, this series')).closest('div')
+    expect(details).toHaveTextContent('0.432')
+    expect(details).toHaveTextContent('all series 0.755')
   })
 })
 
@@ -183,6 +183,27 @@ describe('App: loading and error states', () => {
     expect(alert).toHaveTextContent("No series for item_id='FOODS_3_090'")
   })
 
+  it('explains a scenario that leaves the forecast exactly unchanged, and only then', async () => {
+    const user = userEvent.setup()
+    await renderLoaded()
+    await user.click(screen.getByRole('button', { name: 'No promo' }))
+    const band = screen.getByRole('region', { name: 'Scenario' })
+    await waitFor(() => expect(band).toHaveTextContent('+5.0%'))
+    expect(within(band).queryByText('No change for this item')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    server.use(
+      http.post(`${API}/forecast/:itemId/:storeId/whatif`, () =>
+        HttpResponse.json({ ...forecastFor(FOODS_090), scenario: { has_promo: true, sell_price: null }, note: '' }),
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: 'No promo' }))
+    const note = await within(band).findByRole('note')
+    expect(note).toHaveTextContent('No change for this item')
+    expect(note).toHaveTextContent('a promotion won’t lower the forecast, not that it will raise it')
+    expect(within(note).getByRole('button', { name: 'About how the model treats price and promotions' })).toBeInTheDocument()
+  })
+
   it('reports a failed what-if inside the scenario band and keeps the baseline', async () => {
     server.use(
       http.post(`${API}/forecast/:itemId/:storeId/whatif`, () =>
@@ -195,5 +216,34 @@ describe('App: loading and error states', () => {
     const band = screen.getByRole('region', { name: 'Scenario' })
     await waitFor(() => expect(band).toHaveTextContent("Couldn't re-score: Input should be greater than 0"))
     expect(weekTotals()).toEqual(expectedWeekTotals(forecastFor(FOODS_090).points))
+  })
+})
+
+describe('App: explanations', () => {
+  it('gives every metric and control a keyboard-reachable explanation, worded the same wherever it appears', async () => {
+    const user = userEvent.setup()
+    await renderLoaded()
+    await user.click(screen.getByRole('button', { name: 'Show the numbers behind this' }))
+    await screen.findByText('Backtest error, this series')
+
+    const buttons = screen.getAllByRole('button', { name: /^About / })
+    const names = buttons.map((b) => b.getAttribute('aria-label'))
+    for (const term of ['WAPE', 'the likely range', 'promotion', 'the price change', 'forecast ÷ actual', 'sales volume tiers']) {
+      expect(names).toContain(`About ${term}`)
+    }
+
+    const textByName = new Map<string, string>()
+    for (const button of buttons) {
+      expect(button.tabIndex).toBe(0)
+      button.focus()
+      await user.keyboard('{Enter}')
+      const text = screen.getByRole('note').textContent ?? ''
+      expect(text.length).toBeGreaterThan(40)
+      const name = button.getAttribute('aria-label')!
+      expect(textByName.get(name) ?? text).toBe(text)
+      textByName.set(name, text)
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('note')).toBeNull()
+    }
   })
 })

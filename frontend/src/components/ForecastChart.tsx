@@ -13,7 +13,9 @@ import {
 import type { Forecast, History } from '../api/client'
 import { buildRows, type Row } from '../lib/chartData'
 import { monthName, shortDate, units, weekday } from '../lib/format'
+import { GLOSSARY } from '../lib/glossary'
 import { colors } from '../theme'
+import { Explain } from './Explain'
 
 interface DotProps {
   cx?: number
@@ -156,21 +158,22 @@ export function ForecastChart({ history, baseline, scenario }: Props) {
 }
 
 export function ChartLegend({ scenarioActive }: { scenarioActive: boolean }) {
-  // Sized to sit beside the section title at 1440px even with the scenario entry.
+  // Sized to sit beside the section title at 1440px even with the scenario entries.
   const item = 'inline-flex items-center gap-1.5 whitespace-nowrap'
   return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[12.5px]">
+    <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[12.5px]">
       <span className={item}>
         <span className="inline-block h-0.5 w-3.5 bg-brand" />
         Units sold
       </span>
       <span className={item}>
         <span className="inline-block h-[3px] w-3.5 bg-coral" />
-        {scenarioActive ? 'Forecast with scenario' : 'Forecast'}
+        {scenarioActive ? 'With scenario' : 'Forecast'}
       </span>
       <span className={item}>
         <span className="inline-block h-2.5 w-3.5 bg-coral/20" />
         Likely range (80%)
+        <Explain {...GLOSSARY.dailyRange} />
       </span>
       {scenarioActive && (
         <span className={item}>
@@ -181,6 +184,7 @@ export function ChartLegend({ scenarioActive }: { scenarioActive: boolean }) {
       <span className={item}>
         <span className="inline-block size-[11px] rounded-full border-[3px] border-coral bg-white" />
         Unusual day
+        <Explain {...GLOSSARY.unusualDay} />
       </span>
     </div>
   )

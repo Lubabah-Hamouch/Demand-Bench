@@ -1,5 +1,7 @@
 import { BACKTEST } from '../lib/content'
 import { num } from '../lib/format'
+import { GLOSSARY } from '../lib/glossary'
+import { Explain } from './Explain'
 import { SectionHeading } from './Status'
 
 export function ModelQuality() {
@@ -12,15 +14,19 @@ export function ModelQuality() {
     <section id="quality" aria-label="How much to trust it" className="min-w-0 flex-[1_1_360px]">
       <SectionHeading index="04" title="How much to trust it" />
       <p className="mt-1.5 text-sm text-muted">
-        Five 28-day backtests, {BACKTEST.window}, each trained only on earlier data.
+        Backtests: the model forecast five past four-week periods ({BACKTEST.window}), each time using only earlier
+        data, and the forecasts were checked against what actually sold.
       </p>
       <p className="mt-[18px] text-lg leading-snug">
         The model&apos;s error is{' '}
         <span className="font-display text-[34px] font-bold text-brand">{num(improvement * 100)}% lower</span> than repeating
         sales from four weeks earlier, and it stays on the right side of price and promo changes.
+        <Explain {...GLOSSARY.monotone} />
       </p>
       <div className="mt-[18px] text-[12.5px] text-muted">
-        Weighted error (WAPE) on the same 200 stratified series · lower is better
+        Weighted error (WAPE)
+        <Explain {...GLOSSARY.wape} /> on the same 200-series sample
+        <Explain {...GLOSSARY.sample} /> · lower is better
       </div>
       <div className="mt-2.5 flex flex-col gap-2.5">
         {BACKTEST.sample.map((m) => (
@@ -43,11 +49,17 @@ export function ModelQuality() {
           <dd className="mt-0.5 text-lg font-semibold">WAPE {num(BACKTEST.full.wape, 3)}</dd>
         </div>
         <div className="pr-3 pt-3">
-          <dt className="text-[12.5px] text-muted">Forecast ÷ actual</dt>
+          <dt className="text-[12.5px] text-muted">
+            Forecast ÷ actual
+            <Explain {...GLOSSARY.bias} />
+          </dt>
           <dd className="mt-0.5 text-lg font-semibold">{num(BACKTEST.full.bias * 100, 1)}%</dd>
         </div>
         <div className="pr-3 pt-3">
-          <dt className="text-[12.5px] text-muted">Inside the 80% range</dt>
+          <dt className="text-[12.5px] text-muted">
+            Inside the 80% range
+            <Explain {...GLOSSARY.coverage} />
+          </dt>
           <dd className="mt-0.5 text-lg font-semibold">{num(BACKTEST.full.coverage * 100, 1)}%</dd>
           <dd className="text-xs text-muted">{num(BACKTEST.full.coverageWithSales * 100, 1)}% on days with sales</dd>
         </div>

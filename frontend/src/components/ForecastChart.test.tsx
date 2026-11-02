@@ -77,7 +77,7 @@ describe('ChartLegend', () => {
     expect(screen.getByText('Forecast')).toBeInTheDocument()
     expect(screen.queryByText('Without scenario')).toBeNull()
     rerender(<ChartLegend scenarioActive />)
-    expect(screen.getByText('Forecast with scenario')).toBeInTheDocument()
+    expect(screen.getByText('With scenario')).toBeInTheDocument()
     expect(screen.getByText('Without scenario')).toBeInTheDocument()
   })
 })

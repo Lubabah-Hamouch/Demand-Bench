@@ -1,7 +1,9 @@
 import { api } from '../api/client'
 import { FEATURE_LABELS } from '../lib/content'
 import { num } from '../lib/format'
+import { GLOSSARY } from '../lib/glossary'
 import { useAsync } from '../lib/hooks'
+import { Explain } from './Explain'
 import { ErrorNote, SectionHeading, Skeleton } from './Status'
 
 const SHOWN = 10
@@ -14,7 +16,11 @@ export function Drivers() {
   return (
     <section id="drivers" aria-label="What the model leans on" className="min-w-0 flex-[1_1_360px]">
       <SectionHeading index="03" title="What the model leans on" />
-      <p className="mt-1.5 text-sm text-muted">One model covers every series, so these weights are the same for all of them.</p>
+      <p className="mt-1.5 text-sm text-muted">
+        The inputs the forecasts rely on most, and how much. One model covers every series, so these are the same for
+        all of them.
+        <Explain {...GLOSSARY.importance} />
+      </p>
       <div className="mt-[18px] flex flex-col gap-3">
         {importance.status === 'error' && <ErrorNote error={importance.error} onRetry={importance.reload} />}
         {importance.status === 'loading' && !importance.data &&

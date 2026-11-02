@@ -3,6 +3,7 @@ import { api, ApiError, isOffline, type SeriesInfo, type WhatIfRequest } from '.
 import { ChartLegend, ForecastChart } from './components/ForecastChart'
 import { ForecastTable } from './components/ForecastTable'
 import { Drivers } from './components/Drivers'
+import { Explain } from './components/Explain'
 import { Header } from './components/Header'
 import { ModelQuality } from './components/ModelQuality'
 import { ScenarioBand } from './components/ScenarioBand'
@@ -10,6 +11,7 @@ import { Sidebar } from './components/Sidebar'
 import { ChartSkeleton, ErrorNote, SectionHeading, TableSkeleton } from './components/Status'
 import { Summary } from './components/Summary'
 import { describeSeries, shortDate, units } from './lib/format'
+import { GLOSSARY } from './lib/glossary'
 import { useAsync, useDebounced } from './lib/hooks'
 
 // A high-volume series that is always in the bundle, so the first screen has data.
@@ -179,7 +181,12 @@ export default function App() {
                     <span className="text-[13px] text-muted">
                       {scenarioData
                         ? 'Units per day with scenario · small figures: change vs. no scenario'
-                        : 'Units per day · small figures: likely range'}
+                        : (
+                          <>
+                            Units per day · small figures: likely range
+                            <Explain {...GLOSSARY.dailyRange} />
+                          </>
+                        )}
                     </span>
                   }
                 />

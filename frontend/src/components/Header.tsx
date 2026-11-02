@@ -1,4 +1,6 @@
 import { longDate, num } from '../lib/format'
+import { GLOSSARY } from '../lib/glossary'
+import { Explain } from './Explain'
 
 interface Props {
   trainedThrough: string | null
@@ -41,6 +43,7 @@ export function Header({ trainedThrough, nSeries, status }: Props) {
             <span className="inline-block h-3 w-44 animate-pulse rounded-sm bg-white/20 align-middle" aria-label="Loading model" />
           )}
           {nSeries !== null && <> · {num(nSeries)} store-item series</>}
+          {trainedThrough && <Explain {...GLOSSARY.trainedThrough} tone="onBrand" />}
         </div>
       </div>
     </header>
