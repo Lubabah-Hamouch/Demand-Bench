@@ -4,6 +4,8 @@ DemandBench is a SKU-level demand forecasting system built on the M5 Forecasting
 
 For any of the 30,490 item/store series, the dashboard shows the next four weeks' forecast with an 80% likely range next to the last six months of sales (with unusual days flagged), lets you try what-if scenarios (a promotion, or a price from 30% below to 30% above list) and see them re-scored against the baseline, and reports how far to trust the model: its backtest error for that series and overall, and how it compares with Prophet and a seasonal naive baseline. Every metric and control has a short plain-language explanation behind a "?" button.
 
+**Live demo:** https://demand-bench.onrender.com (the API runs on Render's free tier, so after a quiet period the first load can take up to a minute while it wakes up)
+
 ![The dashboard for one series: the four-week forecast headline, the scenario controls, and daily sales with the forecast and its likely range](docs/screenshots/dashboard.png)
 
 ![A what-if scenario: a 20% price cut raises the four-week forecast by 11.3%, and the chart shows the scenario forecast against the baseline](docs/screenshots/scenario.png)
