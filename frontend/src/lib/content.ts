@@ -38,6 +38,8 @@ export const BACKTEST = {
     { name: 'Same weekday, four weeks earlier', tech: 'seasonal naive', wape: 0.976, primary: false },
   ],
   // LightGBM on all 30,490 series.
-  // unconstrainedWape: the same model without the monotone price/promo constraints.
+  // unconstrainedWape: the same model without the monotone price/promo constraints. It comes
+  // from an archived earlier run (lightgbm_global_unconstrained) that backtest.compare reads
+  // if saved but can no longer regenerate, so the documented pipeline does not reproduce it.
   full: { wape: 0.755, unconstrainedWape: 0.752, naiveWape: 0.916, bias: 0.933, coverage: 0.805, coverageWithSales: 0.739 },
 } as const

@@ -16,7 +16,7 @@ For any of the 30,490 item/store series, the dashboard shows the next four weeks
 
 This project uses the [M5 Forecasting Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy) dataset from Kaggle (Walmart unit sales, prices and calendar), originally produced for the M5 competition by the University of Nicosia's Institute For The Future.
 
-**No M5 data files are included in this repository**: not the raw CSVs, and none of the derived files (the DuckDB database, feature and backtest Parquet files, or the trained model bundle in `artifacts/`), all of which are gitignored. The repository contains only item and store identifiers (the 200 series in the Prophet sample list), aggregate backtest metrics quoted in this README and the dashboard, and the screenshots above, which show one series' figures. To reproduce the results you need your own Kaggle account that has accepted the competition rules, and you run the pipeline yourself: download, ingest, feature build and training, as described in [Data setup](#data-setup) and [Serving API](#serving-api).
+**No M5 data files are included in this repository**: not the raw CSVs, and none of the derived files (the DuckDB database, feature and backtest Parquet files, or the trained model bundle in `artifacts/`), all of which are gitignored. The repository contains only item and store identifiers (the 200 series in the Prophet sample list), aggregate backtest metrics quoted in the dashboard (`frontend/src/lib/content.ts`), and the screenshots above, which show one series' figures. To reproduce the results you need your own Kaggle account that has accepted the competition rules, and you run the pipeline yourself: download, ingest, feature build and training, as described in [Data setup](#data-setup) and [Serving API](#serving-api).
 
 ## Forecasting setup
 
@@ -50,6 +50,7 @@ The global LightGBM model performs much better on high-volume series than on low
 - `frontend/` — React + TypeScript dashboard (Vite); see [frontend/README.md](frontend/README.md)
 - `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` — container setup (see [Deployment](#deployment))
 - `docs/screenshots/` — the dashboard screenshots used in this README
+- `.env.example` — template for the `.env` file with your Kaggle credentials (see [Data setup](#data-setup))
 
 ## Data setup
 
@@ -75,6 +76,10 @@ uv run python -m demandbench.models.prophet_sample     # selects the Prophet sam
 uv run python -m demandbench.backtest.compare          # runs all models through the backtest, saves to data/processed/backtest/
 uv run python -m demandbench.backtest.compare --table-only   # re-prints the comparison from saved results
 ```
+
+`uv sync` installs only the extras it is given, so `uv sync --extra modeling` removes the `data` extra (the Kaggle client). To rerun `download` after that, use `uv sync --extra data --extra modeling`.
+
+Prophet fits its per-series models in parallel worker processes: 4 by default, or set `DEMANDBENCH_PROPHET_WORKERS` to change it.
 
 The Tweedie variance power and the monotone-constraint method were chosen with `demandbench.models.tune_tweedie` and `demandbench.models.tune_monotone`, on a validation window inside the first fold's training data (no test window is used). They only need rerunning to revisit those choices; results go to `data/processed/backtest/`.
 
@@ -147,7 +152,7 @@ Both services have a Dockerfile, and `docker-compose.yml` runs them together:
 docker compose up --build    # API on http://localhost:8020, dashboard on http://localhost:8080
 ```
 
-- **API** (`backend/Dockerfile`, built from the repository root because it copies in the model bundle from `artifacts/lightgbm/`): a multi-stage `uv` build that installs only the runtime dependencies (`core` + the `serving` extra, which includes LightGBM; no Prophet, dev tools or Kaggle client), then runs `python -m demandbench.serving`. It listens on `$PORT` if set, otherwise 8020, and allows browser origins from `DEMANDBENCH_CORS_ORIGINS`.
+- **API** (`backend/Dockerfile`, built from the repository root because it copies in the model bundle from `artifacts/lightgbm/`): a multi-stage `uv` build that installs only the runtime dependencies (base dependencies + the `serving` extra, which includes LightGBM; no Prophet, dev tools or Kaggle client), then runs `python -m demandbench.serving`. It listens on `$PORT` if set, otherwise 8020, and allows browser origins from `DEMANDBENCH_CORS_ORIGINS`.
 - **Dashboard** (`frontend/Dockerfile`): `npm ci && npm run build`, served by nginx on `$PORT` (default 8080). Vite bakes the API address in at build time, so set it with a build argument: `--build-arg VITE_API_BASE_URL=https://<api-host>`.
 
 The browser, not the dashboard container, calls the API, so the API's CORS origins must include the dashboard's public address (in compose, `http://localhost:8080`).
