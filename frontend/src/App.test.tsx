@@ -6,6 +6,7 @@ import App from './App'
 import { num } from './lib/format'
 import { findSeries, forecastFor, sum } from './test/fixtures'
 import { API, requestsTo, server } from './test/server'
+import { setViewportWidth } from './test/viewport'
 import { colors } from './theme'
 
 // vi.mock is hoisted above the imports, so the helper is imported inside the factory.
@@ -245,5 +246,117 @@ describe('App: explanations', () => {
       await user.keyboard('{Escape}')
       expect(screen.queryByRole('note')).toBeNull()
     }
+  })
+})
+
+describe('App: narrow screens', () => {
+  const PHONE = 375
+  const menuButton = () => screen.getByRole('button', { name: 'Choose a series' })
+  const drawer = () => document.getElementById('series-drawer')!
+
+  async function renderAt(width: number) {
+    setViewportWidth(width)
+    render(<App />)
+    await screen.findByText(/Expect about/)
+    // Below 768px the table has a row per day (plus a heading row per week); above, a row per week.
+    const rows = width < 768 ? 32 : 4
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Next 28 days' }).querySelectorAll('tbody tr')).toHaveLength(rows))
+  }
+
+  it('keeps the series list in a closed drawer instead of a column, below the breakpoint', async () => {
+    await renderAt(PHONE)
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'false')
+    expect(menuButton()).toHaveAttribute('aria-controls', 'series-drawer')
+    // Closed, the drawer is inert: out of the tab order and hidden from assistive technology.
+    expect(drawer()).toHaveAttribute('role', 'dialog')
+    expect(drawer()).toHaveAttribute('inert')
+    expect(screen.queryByTestId('drawer-backdrop')).toBeNull()
+  })
+
+  it('shows the list as a column with no menu button on wide screens', async () => {
+    await renderAt(1440)
+    expect(screen.queryByRole('button', { name: 'Choose a series' })).toBeNull()
+    expect(drawer()).not.toHaveAttribute('role')
+    expect(drawer()).not.toHaveAttribute('inert')
+    expect(screen.getByRole('complementary', { name: 'Choose a series' })).toBeInTheDocument()
+  })
+
+  it('opens from the menu button, moves focus into the drawer, and closes on the backdrop', async () => {
+    const user = userEvent.setup()
+    await renderAt(PHONE)
+    await user.click(menuButton())
+
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'true')
+    expect(drawer()).not.toHaveAttribute('inert')
+    expect(drawer()).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByRole('button', { name: 'Close series list' })).toHaveFocus()
+    // The page behind is inert and does not scroll while the drawer is open.
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await user.click(screen.getByTestId('drawer-backdrop'))
+    expect(drawer()).toHaveAttribute('inert')
+    expect(screen.queryByTestId('drawer-backdrop')).toBeNull()
+    expect(screen.getByRole('main')).not.toHaveAttribute('inert')
+    expect(document.body.style.overflow).toBe('')
+    expect(menuButton()).toHaveFocus()
+  })
+
+  it('closes with its close button and with Escape', async () => {
+    const user = userEvent.setup()
+    await renderAt(PHONE)
+    await user.click(menuButton())
+    await user.click(screen.getByRole('button', { name: 'Close series list' }))
+    expect(drawer()).toHaveAttribute('inert')
+
+    await user.click(menuButton())
+    await user.keyboard('{Escape}')
+    expect(drawer()).toHaveAttribute('inert')
+    expect(menuButton()).toHaveFocus()
+  })
+
+  it('keeps search and filters working in the drawer, and closes it when a series is chosen', async () => {
+    const user = userEvent.setup()
+    await renderAt(PHONE)
+    await user.click(menuButton())
+    const list = within(screen.getByRole('complementary', { name: 'Choose a series' }))
+
+    await user.click(list.getByRole('button', { name: 'High' }))
+    await waitFor(() => expect(requestsTo('GET', /^\/series$/).some((r) => r.params.volume_tier === 'high')).toBe(true))
+    await user.type(list.getByLabelText('Search item, department or store'), 'TX_3')
+    const row = await waitFor(() => {
+      const found = list.getAllByRole('button').find((b) => b.textContent?.includes('FOODS_3_586 · TX_3'))
+      expect(found).toBeDefined()
+      return found!
+    })
+    await user.click(row)
+
+    expect(drawer()).toHaveAttribute('inert')
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Item 586'))
+    expect(summary()).toHaveTextContent('Texas, Store 3')
+  })
+
+  it('closes an open drawer when the window widens past the breakpoint', async () => {
+    const user = userEvent.setup()
+    await renderAt(PHONE)
+    await user.click(menuButton())
+    act(() => setViewportWidth(1440))
+    expect(screen.queryByRole('button', { name: 'Choose a series' })).toBeNull()
+    expect(drawer()).not.toHaveAttribute('inert')
+    expect(screen.queryByTestId('drawer-backdrop')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('lists the 28 days one per row, grouped by week with week totals, on a phone', async () => {
+    await renderAt(PHONE)
+    const table = within(screen.getByRole('region', { name: 'Next 28 days' }))
+    const weeks = table.getAllByRole('rowheader').filter((h) => h.textContent?.startsWith('Week of'))
+    expect(weeks.map((h) => h.textContent)).toEqual(['Week of May 23', 'Week of May 30', 'Week of Jun 6', 'Week of Jun 13'])
+    expect(weeks.map((h) => h.closest('tr')!.lastElementChild!.textContent)).toEqual(
+      expectedWeekTotals(forecastFor(FOODS_090).points),
+    )
+    // One row per day, plus a heading row per week and the column headings.
+    expect(table.getAllByRole('row')).toHaveLength(28 + 4 + 1)
+    expect(table.getByRole('columnheader', { name: 'Likely range' })).toBeInTheDocument()
   })
 })

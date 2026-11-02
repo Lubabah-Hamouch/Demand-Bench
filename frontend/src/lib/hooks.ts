@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 
 export type AsyncState<T> =
   | { status: 'loading'; data: T | null; error: null }
@@ -48,4 +48,20 @@ export function useDebounced<T>(value: T, delayMs: number): T {
     return () => clearTimeout(id)
   }, [value, delayMs])
   return debounced
+}
+
+/** Layout breakpoints in px, matching Tailwind's defaults used in the classes. */
+export const BREAKPOINTS = { sm: 640, md: 768, lg: 1024, xl: 1280 } as const
+
+/** Whether the viewport is at least `px` wide, kept current as the window resizes. */
+export function useMinWidth(px: number): boolean {
+  const query = `(min-width: ${px}px)`
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query)
+      list.addEventListener('change', onChange)
+      return () => list.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia(query).matches,
+  )
 }

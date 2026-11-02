@@ -33,8 +33,8 @@ export function ScenarioBand({ promo, pct, price, baseTotal, scenarioTotal, upda
   else if (ready) note = `${num(scenarioTotal)} units over four weeks, vs ${num(baseTotal)} without it`
 
   return (
-    <section aria-label="Scenario" className="flex flex-wrap items-center gap-x-6 gap-y-4 bg-brand-tint px-10 py-5">
-      <div className="kicker flex-none text-brand">Try a scenario</div>
+    <section aria-label="Scenario" className="flex flex-wrap items-center gap-x-6 gap-y-4 bg-brand-tint px-5 py-5 sm:px-10">
+      <div className="kicker basis-full text-brand sm:basis-auto sm:flex-none">Try a scenario</div>
       <div className="flex items-center gap-3">
         <span className="inline-flex items-center font-semibold">
           Promotion
@@ -51,7 +51,7 @@ export function ScenarioBand({ promo, pct, price, baseTotal, scenarioTotal, upda
           {promo ? 'Promo on' : 'No promo'}
         </button>
       </div>
-      <div className="@container min-w-[180px] flex-1">
+      <div className="@container min-w-[180px] flex-1 basis-full sm:basis-0">
         <div className="flex items-baseline justify-between gap-2.5">
           <span className="inline-flex items-center">
             <label htmlFor="price-change" className="font-semibold">
@@ -93,9 +93,9 @@ export function ScenarioBand({ promo, pct, price, baseTotal, scenarioTotal, upda
         </div>
       </div>
       {/* Fixed width, so the row does not reflow as the result text changes. */}
-      <div className="flex w-[352px] flex-none items-center gap-3" aria-live="polite">
+      <div className="flex w-full flex-none items-center gap-3 sm:w-[352px]" aria-live="polite">
         <span
-          className={`font-display tabular w-[170px] flex-none text-right text-[52px] leading-none font-bold transition-opacity ${
+          className={`font-display tabular flex-none text-[44px] leading-none font-bold transition-opacity sm:w-[170px] sm:text-right sm:text-[52px] ${
             ready ? 'text-coral' : 'text-ghost'
           } ${updating ? 'opacity-50' : ''}`}
         >

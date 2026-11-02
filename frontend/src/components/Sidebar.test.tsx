@@ -11,7 +11,16 @@ const seriesRows = () =>
     .filter((b) => /units \/ 4 wk/.test(b.textContent ?? ''))
 
 function renderSidebar(onSelect = vi.fn()) {
-  render(<Sidebar selected={{ itemId: 'FOODS_3_090', storeId: 'CA_1' }} onSelect={onSelect} nSeries={30490} />)
+  render(
+    <Sidebar
+      selected={{ itemId: 'FOODS_3_090', storeId: 'CA_1' }}
+      onSelect={onSelect}
+      nSeries={30490}
+      drawer={false}
+      open={false}
+      onClose={() => {}}
+    />,
+  )
   return onSelect
 }
 

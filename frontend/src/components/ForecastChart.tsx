@@ -69,39 +69,57 @@ interface Props {
   history: History
   baseline: Forecast
   scenario: Forecast | null
+  /** Most recent days of history to draw (default: all of them). */
+  historyDays?: number
+  /** Phone widths: a shorter chart with smaller axis text. */
+  compact?: boolean
+  /** End the "next 4 weeks" label at the chart's right edge (narrow charts, where the
+      forecast region is narrower than the label). */
+  labelAtEnd?: boolean
 }
 
-export function ForecastChart({ history, baseline, scenario }: Props) {
-  const rows = buildRows(history, baseline, scenario)
+export function ForecastChart({ history, baseline, scenario, historyDays, compact = false, labelAtEnd = false }: Props) {
+  const recent = historyDays === undefined ? history : { ...history, points: history.points.slice(-historyDays) }
+  const rows = buildRows(recent, baseline, scenario)
   const scenarioActive = scenario !== null
   const firstForecast = baseline.points[0]?.date
   const lastForecast = baseline.points[baseline.points.length - 1]?.date
   const monthTicks = rows.filter((r, i) => i > 2 && i < rows.length - 3 && r.date.endsWith('-01')).map((r) => r.date)
 
+  const tick = { fill: colors.muted, fontSize: compact ? 11.5 : 12.5 }
+  const forecastLabel = { value: 'NEXT 4 WEEKS', fill: colors.coralDeep, fontSize: 12, fontWeight: 600, letterSpacing: 1.5, dy: -22 }
+
   return (
-    <div className="h-[380px] w-full" role="img" aria-label="Daily units sold over 180 days with a four-week forecast and its likely range">
+    <div className={`${compact ? 'h-[300px]' : 'h-[380px]'} w-full`} role="img" aria-label="Daily units sold over 180 days with a four-week forecast and its likely range">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 28, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke={colors.rule} />
-          <ReferenceArea x1={firstForecast} x2={lastForecast} fill={colors.coral} fillOpacity={0.06} ifOverflow="extendDomain" />
+          <ReferenceArea
+            x1={firstForecast}
+            x2={lastForecast}
+            fill={colors.coral}
+            fillOpacity={0.06}
+            ifOverflow="extendDomain"
+            label={labelAtEnd ? { ...forecastLabel, position: 'insideTopRight' } : undefined}
+          />
           <ReferenceLine
             x={firstForecast}
             stroke={colors.coral}
             strokeWidth={2}
-            label={{ value: 'NEXT 4 WEEKS', position: 'insideTopLeft', fill: colors.coralDeep, fontSize: 12, fontWeight: 600, letterSpacing: 1.5, dy: -22 }}
+            label={labelAtEnd ? undefined : { ...forecastLabel, position: 'insideTopLeft' }}
           />
           <XAxis
             dataKey="date"
             ticks={monthTicks}
             tickFormatter={monthName}
-            tick={{ fill: colors.muted, fontSize: 12.5 }}
+            tick={tick}
             axisLine={{ stroke: colors.rule }}
             tickLine={false}
             interval={0}
           />
           <YAxis
-            width={48}
-            tick={{ fill: colors.muted, fontSize: 12.5 }}
+            width={compact ? 36 : 48}
+            tick={tick}
             axisLine={false}
             tickLine={false}
             allowDecimals={false}

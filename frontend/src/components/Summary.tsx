@@ -89,9 +89,9 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
           ? 'about the same as the previous four'
           : `${num(Math.abs(change) * 100)}% ${change > 0 ? 'more' : 'fewer'} than the previous four`
     sentence = (
-      <p className="mt-6 max-w-[860px] text-2xl leading-snug">
+      <p className="mt-5 max-w-[860px] text-xl leading-snug sm:mt-6 sm:text-2xl">
         {scenarioActive ? 'With this scenario, expect about' : 'Expect about'}{' '}
-        <span className="font-display tabular align-[-4px] text-[52px] font-bold text-coral">{num(units)}</span> units over
+        <span className="font-display tabular align-[-3px] text-[40px] font-bold text-coral sm:align-[-4px] sm:text-[52px]">{num(units)}</span> units over
         the next four weeks, <span className="font-semibold text-brand">{compare}</span>.
       </p>
     )
@@ -127,11 +127,11 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
       : null
 
   return (
-    <section aria-label="Summary" className="px-10 pb-7 pt-9">
+    <section aria-label="Summary" className="px-5 pb-7 pt-7 sm:px-10 sm:pt-9">
       <div className="kicker text-brand">{name.crumb}</div>
-      <div className="mt-2.5 flex flex-wrap items-baseline gap-x-5 gap-y-1">
-        <h1 className="font-display m-0 text-[88px] font-bold text-brand">{name.itemLabel}</h1>
-        <span className="font-display text-[40px] font-semibold text-ink">{name.place}</span>
+      <div className="mt-2.5 flex flex-wrap items-baseline gap-x-5 gap-y-2">
+        <h1 className="font-display m-0 text-[60px] font-bold text-brand sm:text-[88px]">{name.itemLabel}</h1>
+        <span className="font-display text-[28px] font-semibold text-ink sm:text-[40px]">{name.place}</span>
       </div>
       <div className="mt-3 text-[13px] text-muted">
         <span className="font-mono text-[12.5px]">
@@ -158,7 +158,7 @@ export function Summary({ itemId, storeId, info, baseline, shown, history, scena
         </button>
       )}
       {open && !offline && (
-        <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] border-t-[3px] border-brand bg-surface-alt">
+        <dl className="mt-4 grid grid-cols-2 border-t-[3px] border-brand bg-surface-alt sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))]">
           {details
             ? details.map((d) => (
                 <div key={d.label} className="border-b border-r border-rule px-4 py-3.5">

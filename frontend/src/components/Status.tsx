@@ -123,7 +123,7 @@ export function ErrorNote({
 export function SectionHeading({ index, title, aside }: { index: string; title: string; aside?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2 border-t-4 border-brand pt-3.5">
-      <h2 className="font-display text-[34px] font-bold text-brand">
+      <h2 className="font-display text-[28px] font-bold text-brand sm:text-[34px]">
         <span className="text-coral">{index}</span> {title}
       </h2>
       {aside}

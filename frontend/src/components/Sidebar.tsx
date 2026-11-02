@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, isOffline, type SeriesInfo, type SeriesQuery, type VolumeTier } from '../api/client'
 import { describeSeries, num, STATE_CODES } from '../lib/format'
 import { GLOSSARY } from '../lib/glossary'
@@ -39,9 +39,13 @@ interface Props {
   selected: { itemId: string; storeId: string }
   onSelect: (series: SeriesInfo) => void
   nSeries: number | null
+  /** Narrow screens: an overlay drawer, opened from the header, instead of a column. */
+  drawer: boolean
+  open: boolean
+  onClose: () => void
 }
 
-export function Sidebar({ selected, onSelect, nSeries }: Props) {
+export function Sidebar({ selected, onSelect, nSeries, drawer, open, onClose }: Props) {
   const [text, setText] = useState('')
   const [tier, setTier] = useState<VolumeTier | 'all'>('all')
   const [limit, setLimit] = useState(PAGE_SIZE)
@@ -57,128 +61,185 @@ export function Sidebar({ selected, onSelect, nSeries }: Props) {
   const items = page.data?.items ?? []
   const total = page.data?.total ?? 0
 
+  const closeButton = useRef<HTMLButtonElement>(null)
+  const showing = drawer && open
+  // While the drawer is open: focus starts on its close button, Escape closes it, and the
+  // page behind it does not scroll.
+  useEffect(() => {
+    if (!showing) return
+    closeButton.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = overflow
+    }
+  }, [showing, onClose])
+
+  const hidden = drawer && !open
   return (
-    // The green column runs the full page height; the list inside it stays in view.
-    <div className="w-full shrink-0 bg-brand lg:w-[300px]">
-      <aside
-        aria-label="Choose a series"
-        className="px-[18px] pb-7 pt-6 text-white lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto"
+    <>
+      {showing && (
+        <div data-testid="drawer-backdrop" aria-hidden="true" onClick={onClose} className="fixed inset-0 z-30 bg-ink/55" />
+      )}
+      {/* Wide screens: the green column runs the full page height and the list inside it
+          stays in view. Narrow screens: the same panel slides in from the left. While it is
+          closed it is inert, which takes its controls out of the tab order and hides them
+          from assistive technology. */}
+      <div
+        id="series-drawer"
+        role={drawer ? 'dialog' : undefined}
+        aria-modal={showing || undefined}
+        aria-label={drawer ? 'Series' : undefined}
+        inert={hidden}
+        className={
+          drawer
+            ? `fixed inset-y-0 left-0 z-40 w-[min(320px,calc(100vw-48px))] overflow-y-auto overscroll-contain bg-brand transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                // The shadow only while open: off-screen, it would still fall on the page edge.
+                open ? 'translate-x-0 shadow-[6px_0_24px_rgba(16,36,26,0.3)]' : '-translate-x-full'
+              }`
+            : 'w-[300px] shrink-0 bg-brand'
+        }
       >
-        <div className="kicker text-on-brand-muted">Series</div>
-        <label htmlFor="series-search" className="mt-3 block text-[13px] text-on-brand">
-          Search item, department or store
-        </label>
-        <input
-          id="series-search"
-          type="search"
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value)
-            setLimit(PAGE_SIZE)
-          }}
-          placeholder="Foods 3, CA_1, Hobbies…"
-          className="mt-1.5 min-h-11 w-full rounded-md bg-white px-3 text-[15px] text-ink placeholder:text-muted"
-        />
-        <div className="mt-3 flex items-center text-[13px] text-on-brand">
-          Sales volume
-          <Explain {...GLOSSARY.volumeTier} tone="onBrand" />
-        </div>
-        <div role="group" aria-label="Volume tier" className="mt-1.5 flex flex-wrap gap-1.5">
-          {TIERS.map((t) => {
-            const active = tier === t.value
-            return (
+        <aside
+          aria-label="Choose a series"
+          className={`px-[18px] pb-7 text-white ${drawer ? 'pt-3' : 'sticky top-0 max-h-screen overflow-y-auto pt-6'}`}
+        >
+          <div className={`flex items-center justify-between ${drawer ? 'min-h-11' : ''}`}>
+            <div className="kicker text-on-brand-muted">Series</div>
+            {drawer && (
               <button
-                key={t.value}
+                ref={closeButton}
                 type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setTier(t.value)
-                  setLimit(PAGE_SIZE)
-                }}
-                className={`min-h-9 rounded-full border-[1.5px] px-3 text-[13px] font-semibold ${
-                  active ? 'border-white bg-white text-brand' : 'border-white/55 text-white hover:border-white'
-                }`}
+                onClick={onClose}
+                aria-label="Close series list"
+                className="-mr-2 inline-flex size-11 items-center justify-center rounded-full text-white hover:bg-white/10"
               >
-                {t.label}
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="M3.5 3.5 L14.5 14.5 M14.5 3.5 L3.5 14.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                </svg>
               </button>
-            )
-          })}
-        </div>
+            )}
+          </div>
+          <label htmlFor="series-search" className={`block text-[13px] text-on-brand ${drawer ? 'mt-1' : 'mt-3'}`}>
+            Search item, department or store
+          </label>
+          <input
+            id="series-search"
+            type="search"
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value)
+              setLimit(PAGE_SIZE)
+            }}
+            placeholder="Foods 3, CA_1, Hobbies…"
+            className="mt-1.5 min-h-11 w-full rounded-md bg-white px-3 text-[15px] text-ink placeholder:text-muted"
+          />
+          <div className="mt-3 flex items-center text-[13px] text-on-brand">
+            Sales volume
+            <Explain {...GLOSSARY.volumeTier} tone="onBrand" />
+          </div>
+          <div role="group" aria-label="Volume tier" className="mt-1.5 flex flex-wrap gap-1.5">
+            {TIERS.map((t) => {
+              const active = tier === t.value
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setTier(t.value)
+                    setLimit(PAGE_SIZE)
+                  }}
+                  className={`min-h-9 rounded-full border-[1.5px] px-3 text-[13px] font-semibold ${
+                    active ? 'border-white bg-white text-brand' : 'border-white/55 text-white hover:border-white'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
 
-        <div className="mt-[18px] flex flex-col gap-1" aria-busy={page.status === 'loading'}>
-          {page.status === 'error' && !page.data &&
-            (isOffline(page.error) ? (
-              <p className="px-3.5 py-3 text-sm text-on-brand">Series will appear here once the API is reachable.</p>
-            ) : (
-              <ErrorNote error={page.error} onRetry={page.reload} title="Could not load series" compact />
-            ))}
-          {page.status === 'loading' && !page.data &&
-            Array.from({ length: 7 }, (_, i) => (
-              <div key={i} aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 px-3.5 py-3">
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-2.5 w-24 bg-white/15" />
-                  <Skeleton className="h-5 w-28 bg-white/20" />
-                  <Skeleton className="h-2.5 w-32 bg-white/15" />
+          <div className="mt-[18px] flex flex-col gap-1" aria-busy={page.status === 'loading'}>
+            {page.status === 'error' && !page.data &&
+              (isOffline(page.error) ? (
+                <p className="px-3.5 py-3 text-sm text-on-brand">Series will appear here once the API is reachable.</p>
+              ) : (
+                <ErrorNote error={page.error} onRetry={page.reload} title="Could not load series" compact />
+              ))}
+            {page.status === 'loading' && !page.data &&
+              Array.from({ length: 7 }, (_, i) => (
+                <div key={i} aria-hidden="true" className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 px-3.5 py-3">
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-2.5 w-24 bg-white/15" />
+                    <Skeleton className="h-5 w-28 bg-white/20" />
+                    <Skeleton className="h-2.5 w-32 bg-white/15" />
+                  </div>
+                  <div className="flex flex-col items-end gap-2 self-center">
+                    <Skeleton className="h-5 w-12 bg-white/20" />
+                    <Skeleton className="h-2.5 w-16 bg-white/15" />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2 self-center">
-                  <Skeleton className="h-5 w-12 bg-white/20" />
-                  <Skeleton className="h-2.5 w-16 bg-white/15" />
-                </div>
-              </div>
-            ))}
-          {items.map((s) => {
-            const name = describeSeries(s.item_id, s.store_id)
-            const isSelected = s.item_id === selected.itemId && s.store_id === selected.storeId
-            return (
+              ))}
+            {items.map((s) => {
+              const name = describeSeries(s.item_id, s.store_id)
+              const isSelected = s.item_id === selected.itemId && s.store_id === selected.storeId
+              return (
+                <button
+                  key={`${s.item_id}/${s.store_id}`}
+                  type="button"
+                  onClick={() => onSelect(s)}
+                  aria-current={isSelected ? 'true' : undefined}
+                  className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-0.5 rounded-md px-3.5 py-3 text-left ${
+                    isSelected ? 'bg-white' : 'hover:bg-white/10'
+                  }`}
+                >
+                  <span className={`text-xs tracking-[0.02em] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>{name.path}</span>
+                  <span className={`tabular row-span-2 self-center text-right text-[13px] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>
+                    <span className={`font-display block text-[22px] font-bold ${isSelected ? 'text-brand' : 'text-white'}`}>
+                      {num(s.sales_last_28d)}
+                    </span>
+                    units / 4 wk
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`font-display block text-2xl font-bold ${isSelected ? 'text-brand' : 'text-white'}`}>{name.itemLabel}</span>
+                    <span className={`mt-1 block text-[13px] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>{name.place}</span>
+                    <span className={`mt-1 block font-mono text-[11px] ${isSelected ? 'text-muted' : 'text-on-brand-muted'}`}>
+                      {s.item_id} · {s.store_id}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+            {page.data && items.length === 0 && <p className="px-3.5 py-3.5 text-sm text-on-brand">Nothing matches that search.</p>}
+            {page.data && items.length < total && (
               <button
-                key={`${s.item_id}/${s.store_id}`}
                 type="button"
-                onClick={() => onSelect(s)}
-                aria-current={isSelected ? 'true' : undefined}
-                className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-0.5 rounded-md px-3.5 py-3 text-left ${
-                  isSelected ? 'bg-white' : 'hover:bg-white/10'
-                }`}
+                onClick={() => setLimit((n) => Math.min(n + PAGE_SIZE, 1000))}
+                disabled={page.status === 'loading'}
+                className="mt-2 min-h-10 rounded-md border-[1.5px] border-white/55 text-sm font-semibold text-white hover:border-white disabled:opacity-60"
               >
-                <span className={`text-xs tracking-[0.02em] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>{name.path}</span>
-                <span className={`tabular row-span-2 self-center text-right text-[13px] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>
-                  <span className={`font-display block text-[22px] font-bold ${isSelected ? 'text-brand' : 'text-white'}`}>
-                    {num(s.sales_last_28d)}
-                  </span>
-                  units / 4 wk
-                </span>
-                <span className="min-w-0">
-                  <span className={`font-display block text-2xl font-bold ${isSelected ? 'text-brand' : 'text-white'}`}>{name.itemLabel}</span>
-                  <span className={`mt-1 block text-[13px] ${isSelected ? 'text-muted' : 'text-on-brand'}`}>{name.place}</span>
-                  <span className={`mt-1 block font-mono text-[11px] ${isSelected ? 'text-muted' : 'text-on-brand-muted'}`}>
-                    {s.item_id} · {s.store_id}
-                  </span>
-                </span>
+                {page.status === 'loading' ? 'Loading…' : `Show more (${num(total - items.length)} left)`}
               </button>
-            )
-          })}
-          {page.data && items.length === 0 && <p className="px-3.5 py-3.5 text-sm text-on-brand">Nothing matches that search.</p>}
-          {page.data && items.length < total && (
-            <button
-              type="button"
-              onClick={() => setLimit((n) => Math.min(n + PAGE_SIZE, 1000))}
-              disabled={page.status === 'loading'}
-              className="mt-2 min-h-10 rounded-md border-[1.5px] border-white/55 text-sm font-semibold text-white hover:border-white disabled:opacity-60"
-            >
-              {page.status === 'loading' ? 'Loading…' : `Show more (${num(total - items.length)} left)`}
-            </button>
-          )}
-        </div>
+            )}
+          </div>
 
-        <p className="mt-[18px] border-t border-white/20 pt-3.5 text-[12.5px] text-on-brand">
-          {page.data && (
-            <>
-              {num(items.length)} of {num(total)} matching series shown
-              {nSeries !== null && ` (${num(nSeries)} in total)`}, busiest first.{' '}
-            </>
-          )}
-          IDs and sales come from the M5 Walmart dataset, which does not include product names.
-        </p>
-      </aside>
-    </div>
+          <p className="mt-[18px] border-t border-white/20 pt-3.5 text-[12.5px] text-on-brand">
+            {page.data && (
+              <>
+                {num(items.length)} of {num(total)} matching series shown
+                {nSeries !== null && ` (${num(nSeries)} in total)`}, busiest first.{' '}
+              </>
+            )}
+            IDs and sales come from the M5 Walmart dataset, which does not include product names.
+          </p>
+        </aside>
+      </div>
+    </>
   )
 }

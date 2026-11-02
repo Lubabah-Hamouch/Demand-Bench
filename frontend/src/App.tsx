@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError, isOffline, type SeriesInfo, type WhatIfRequest } from './api/client'
 import { ChartLegend, ForecastChart } from './components/ForecastChart'
 import { ForecastTable } from './components/ForecastTable'
@@ -12,11 +12,13 @@ import { ChartSkeleton, ErrorNote, SectionHeading, TableSkeleton } from './compo
 import { Summary } from './components/Summary'
 import { describeSeries, shortDate, units } from './lib/format'
 import { GLOSSARY } from './lib/glossary'
-import { useAsync, useDebounced } from './lib/hooks'
+import { BREAKPOINTS, useAsync, useDebounced, useMinWidth } from './lib/hooks'
 
 // A high-volume series that is always in the bundle, so the first screen has data.
 const DEFAULT_SERIES = { itemId: 'FOODS_3_090', storeId: 'CA_1' }
 const HISTORY_DAYS = 180
+// Phones get the last 12 weeks of history on the chart, so daily detail stays readable.
+const HISTORY_DAYS_COMPACT = 84
 const SLIDER_DEBOUNCE_MS = 300
 
 interface Scenario {
@@ -73,9 +75,39 @@ export default function App() {
   const sum = (points: { forecast: number }[]) => points.reduce((s, p) => s + p.forecast, 0)
   const pending = scenarioActive && (scenario.pct !== debouncedPct || whatIf.status === 'loading' || scenarioData === null)
 
+  // Below the xl breakpoint the series list is a drawer opened from the header.
+  const drawer = !useMinWidth(BREAKPOINTS.xl)
+  const phone = !useMinWidth(BREAKPOINTS.sm)
+  const compactTable = !useMinWidth(BREAKPOINTS.md)
+  const narrowChart = !useMinWidth(BREAKPOINTS.lg)
+  // The days of history the chart draws, and so the unusual days listed under it.
+  const chartDays = phone ? HISTORY_DAYS_COMPACT : HISTORY_DAYS
+  const unusualDays = historyData ? historyData.points.slice(-chartDays).filter((p) => p.anomaly) : []
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  // Stable, because the drawer re-runs its focus effect when this changes.
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const drawerShowing = drawer && drawerOpen
+  // Once the drawer has closed (and the header is no longer inert), focus returns to the
+  // button that opened it.
+  const wasShowing = useRef(false)
+  useEffect(() => {
+    if (wasShowing.current && !drawerShowing) menuButton.current?.focus()
+    wasShowing.current = drawerShowing
+  }, [drawerShowing])
+  // Widening the window past the breakpoint closes the drawer, so it is not open again
+  // if the window narrows later.
+  const [wasDrawer, setWasDrawer] = useState(drawer)
+  if (wasDrawer !== drawer) {
+    setWasDrawer(drawer)
+    if (!drawer) setDrawerOpen(false)
+  }
+
   const select = (s: SeriesInfo) => {
     setSelected({ itemId: s.item_id, storeId: s.store_id })
     setScenario(NO_SCENARIO)
+    // Close the drawer so the chosen series is in view at once.
+    if (drawer) closeDrawer()
   }
 
   const seriesError = baseline.status === 'error' ? baseline.error : history.status === 'error' ? history.error : null
@@ -89,15 +121,27 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-ink">
-      <Header
-        trainedThrough={model.data?.train_end ?? null}
-        nSeries={health.data?.n_series ?? null}
-        status={offline ? 'offline' : model.status === 'error' ? 'error' : 'ok'}
-      />
-      <div className="flex flex-1 flex-col lg:flex-row lg:items-stretch">
-        <Sidebar selected={selected} onSelect={select} nSeries={health.data?.n_series ?? null} />
+      {/* While the drawer is open, the page behind it is inert, so focus stays in the drawer. */}
+      <div inert={drawerShowing}>
+        <Header
+          trainedThrough={model.data?.train_end ?? null}
+          nSeries={health.data?.n_series ?? null}
+          status={offline ? 'offline' : model.status === 'error' ? 'error' : 'ok'}
+          menu={drawer ? { open: drawerOpen, onToggle: () => setDrawerOpen((o) => !o) } : undefined}
+          menuRef={menuButton}
+        />
+      </div>
+      <div className="flex flex-1 items-stretch">
+        <Sidebar
+          selected={selected}
+          onSelect={select}
+          nSeries={health.data?.n_series ?? null}
+          drawer={drawer}
+          open={drawerOpen}
+          onClose={closeDrawer}
+        />
 
-        <main id="forecast" className="min-w-0 flex-1 bg-white">
+        <main id="forecast" inert={drawerShowing} className="min-w-0 flex-1 bg-white">
           <Summary
             itemId={itemId}
             storeId={storeId}
@@ -111,11 +155,11 @@ export default function App() {
           />
 
           {offline ? (
-            <div className="px-10 pb-12">
+            <div className="px-5 pb-12 sm:px-10">
               <ErrorNote error={new ApiError(0, 'offline')} onRetry={() => window.location.reload()} />
             </div>
           ) : seriesError ? (
-            <div className="px-10 pb-8">
+            <div className="px-5 pb-8 sm:px-10">
               <ErrorNote
                 error={seriesError}
                 onRetry={() => {
@@ -139,7 +183,7 @@ export default function App() {
                 onReset={() => setScenario(NO_SCENARIO)}
               />
 
-              <section aria-label="Sales and forecast" className="px-10 pb-2.5 pt-[30px]">
+              <section aria-label="Sales and forecast" className="px-5 pb-2.5 pt-[30px] sm:px-10">
                 <SectionHeading
                   index="01"
                   title="Daily sales and forecast"
@@ -147,7 +191,14 @@ export default function App() {
                 />
                 <div className={`mt-5 transition-opacity ${pending ? 'opacity-70' : ''}`}>
                   {baseData && historyData ? (
-                    <ForecastChart history={historyData} baseline={baseData} scenario={scenarioData} />
+                    <ForecastChart
+                      history={historyData}
+                      baseline={baseData}
+                      scenario={scenarioData}
+                      historyDays={chartDays}
+                      compact={phone}
+                      labelAtEnd={narrowChart}
+                    />
                   ) : (
                     <ChartSkeleton />
                   )}
@@ -155,12 +206,9 @@ export default function App() {
                 {historyData && (
                   <div className="mt-3.5 flex flex-wrap items-baseline gap-x-3.5 gap-y-2 text-[13.5px]">
                     <span className="kicker text-coral-deep">Unusual days</span>
-                    {historyData.points.filter((p) => p.anomaly).length === 0 && (
-                      <span className="text-muted">None in the last {HISTORY_DAYS} days</span>
-                    )}
-                    {historyData.points
-                      .filter((p) => p.anomaly)
-                      .reverse()
+                    {unusualDays.length === 0 && <span className="text-muted">None in the last {chartDays} days</span>}
+                    {unusualDays
+                      .toReversed()
                       .map((p) => (
                         <span key={p.date} className="tabular">
                           <span className="font-semibold">{shortDate(p.date)}</span>{' '}
@@ -173,7 +221,7 @@ export default function App() {
                 )}
               </section>
 
-              <section aria-label="Next 28 days" className="px-10 pb-2.5 pt-[30px]">
+              <section aria-label="Next 28 days" className="px-5 pb-2.5 pt-[30px] sm:px-10">
                 <SectionHeading
                   index="02"
                   title="Day by day, next four weeks"
@@ -191,7 +239,7 @@ export default function App() {
                   }
                 />
                 {shown && baseData ? (
-                  <ForecastTable shown={shown} baseline={baseData} scenarioActive={scenarioData !== null} />
+                  <ForecastTable shown={shown} baseline={baseData} scenarioActive={scenarioData !== null} compact={compactTable} />
                 ) : (
                   <TableSkeleton />
                 )}
@@ -200,7 +248,7 @@ export default function App() {
           )}
 
           {!offline && (
-            <div className="flex flex-wrap gap-x-12 gap-y-10 px-10 pb-12 pt-[30px]">
+            <div className="flex flex-wrap gap-x-12 gap-y-10 px-5 pb-12 pt-[30px] sm:px-10">
               <Drivers />
               <ModelQuality />
             </div>
