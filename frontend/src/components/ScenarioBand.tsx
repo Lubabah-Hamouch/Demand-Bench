@@ -51,7 +51,7 @@ export function ScenarioBand({ promo, pct, price, baseTotal, scenarioTotal, upda
           {promo ? 'Promo on' : 'No promo'}
         </button>
       </div>
-      <div className="min-w-[180px] flex-1">
+      <div className="@container min-w-[180px] flex-1">
         <div className="flex items-baseline justify-between gap-2.5">
           <span className="inline-flex items-center">
             <label htmlFor="price-change" className="font-semibold">
@@ -59,9 +59,20 @@ export function ScenarioBand({ promo, pct, price, baseTotal, scenarioTotal, upda
             </label>
             <Explain {...GLOSSARY.price} />
           </span>
-          <span className="tabular text-sm">
+          {/* One line always; "vs list price" only where the column has room for it (the
+              scale below marks the list price either way). */}
+          <span className="tabular text-sm whitespace-nowrap">
             <span className="font-semibold">{price === null ? '—' : money(price * (1 + pct / 100))}</span>{' '}
-            <span className="text-muted">{pct === 0 ? 'list price' : `${pct > 0 ? '+' : '−'}${Math.abs(pct)}% vs list price`}</span>
+            <span className="text-muted">
+              {pct === 0 ? (
+                'list price'
+              ) : (
+                <>
+                  {`${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`}
+                  <span className="hidden @min-[232px]:inline"> vs list price</span>
+                </>
+              )}
+            </span>
           </span>
         </div>
         <input

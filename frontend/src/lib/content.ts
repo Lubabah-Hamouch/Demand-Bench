@@ -24,8 +24,9 @@ export const FEATURE_LABELS: Record<string, string> = {
 
 /**
  * Backtest results, STATIC: copied from the last documented 5-fold backtest run
- * (data/processed/backtest/, monotone-constrained LightGBM, see README). There is no
- * backtest endpoint yet; update these by hand after re-running
+ * (data/processed/backtest/, monotone-constrained LightGBM, see README). The API's
+ * backtest endpoint serves per-series results only (with the all-series WAPE and bias
+ * alongside), not the model comparison or coverage; update these by hand after re-running
  * `python -m demandbench.backtest.compare`.
  */
 export const BACKTEST = {

@@ -1,14 +1,20 @@
 # DemandBench
 
-DemandBench is a SKU-level demand forecasting system built on the M5 Forecasting Accuracy dataset of Walmart unit sales. Feature engineering is done with DuckDB and Polars, and LightGBM is the primary model, benchmarked against a seasonal naive baseline and Prophet using rolling-origin backtesting. Forecasts are served through a FastAPI service and explored in a React dashboard that supports what-if scenarios, such as toggling a promotion flag and re-scoring.
+DemandBench is a SKU-level demand forecasting system built on the M5 Forecasting Accuracy dataset of Walmart unit sales. Feature engineering is done with DuckDB and Polars, and LightGBM is the primary model, benchmarked against a seasonal naive baseline and Prophet using rolling-origin backtesting. Forecasts are served through a FastAPI service and explored in a React dashboard.
 
-**Status:** early development.
+For any of the 30,490 item/store series, the dashboard shows the next four weeks' forecast with an 80% likely range next to the last six months of sales (with unusual days flagged), lets you try what-if scenarios (a promotion, or a price from 30% below to 30% above list) and see them re-scored against the baseline, and reports how far to trust the model: its backtest error for that series and overall, and how it compares with Prophet and a seasonal naive baseline. Every metric and control has a short plain-language explanation behind a "?" button.
+
+![The dashboard for one series: the four-week forecast headline, the scenario controls, and daily sales with the forecast and its likely range](docs/screenshots/dashboard.png)
+
+![A what-if scenario: a 20% price cut raises the four-week forecast by 11.3%, and the chart shows the scenario forecast against the baseline](docs/screenshots/scenario.png)
+
+![What the model relies on (feature importance) and how much to trust it (backtest error against Prophet and a seasonal naive baseline)](docs/screenshots/model.png)
 
 ## Data source
 
 This project uses the [M5 Forecasting Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy) dataset from Kaggle (Walmart unit sales, prices and calendar), originally produced for the M5 competition by the University of Nicosia's Institute For The Future.
 
-**No M5 data is included in this repository**: not the raw CSVs, and none of the derived files (the DuckDB database, feature and backtest Parquet files, or the trained model bundle in `artifacts/`), all of which are gitignored. To reproduce the results you need your own Kaggle account that has accepted the competition rules, and you run the pipeline yourself: download, ingest, feature build and training, as described in [Data setup](#data-setup) and [Serving API](#serving-api).
+**No M5 data files are included in this repository**: not the raw CSVs, and none of the derived files (the DuckDB database, feature and backtest Parquet files, or the trained model bundle in `artifacts/`), all of which are gitignored. The repository contains only item and store identifiers (the 200 series in the Prophet sample list), aggregate backtest metrics quoted in this README and the dashboard, and the screenshots above, which show one series' figures. To reproduce the results you need your own Kaggle account that has accepted the competition rules, and you run the pipeline yourself: download, ingest, feature build and training, as described in [Data setup](#data-setup) and [Serving API](#serving-api).
 
 ## Forecasting setup
 
@@ -38,8 +44,10 @@ The global LightGBM model performs much better on high-volume series than on low
 
 ## Layout
 
-- `backend/` — Python package (`demandbench`) for data, features, models, backtesting and serving
-- `frontend/` — React + TypeScript dashboard (Vite)
+- `backend/` — Python package (`demandbench`) for data, features, models, backtesting and serving, with its tests
+- `frontend/` — React + TypeScript dashboard (Vite); see [frontend/README.md](frontend/README.md)
+- `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile` — container setup (see [Deployment](#deployment))
+- `docs/screenshots/` — the dashboard screenshots used in this README
 
 ## Data setup
 
@@ -64,8 +72,9 @@ uv sync --extra modeling
 uv run python -m demandbench.models.prophet_sample     # selects the Prophet sample (only needed if the CSV is missing)
 uv run python -m demandbench.backtest.compare          # runs all models through the backtest, saves to data/processed/backtest/
 uv run python -m demandbench.backtest.compare --table-only   # re-prints the comparison from saved results
-uv run pytest
 ```
+
+The Tweedie variance power and the monotone-constraint method were chosen with `demandbench.models.tune_tweedie` and `demandbench.models.tune_monotone`, on a validation window inside the first fold's training data (no test window is used). They only need rerunning to revisit those choices; results go to `data/processed/backtest/`.
 
 ## Serving API
 
@@ -77,7 +86,7 @@ uv run python -m demandbench.models.train_final          # writes the model bund
 uv run python -m demandbench.serving --reload             # http://127.0.0.1:8020, interactive docs at /docs
 ```
 
-The server listens on port 8020 by default (`--port` or `DEMANDBENCH_PORT` to change it; `uvicorn demandbench.serving.app:app --port 8020` also works). The bundle is loaded once at startup (set `DEMANDBENCH_ARTIFACTS_DIR` to load it from elsewhere); requests never retrain. It contains the boosters, the feature order and categorical vocabulary used at training time, the training window, feature importance, per-series metadata, the feature rows for the 28 days after training ends (built by `build_features` with the same SQL as the training features), the recent daily data used by the what-if and history endpoints, and the per-series results of the saved backtest. `train_final --data-only` refreshes that data without retraining.
+The server listens on 127.0.0.1:8020 by default. The port comes from `--port`, else `$PORT` (set by hosts such as Render), else `DEMANDBENCH_PORT`; the host from `--host`, else `DEMANDBENCH_HOST` (a container needs `0.0.0.0`). `uvicorn demandbench.serving.app:app --port 8020` also works. The bundle is loaded once at startup (set `DEMANDBENCH_ARTIFACTS_DIR` to load it from elsewhere); requests never retrain. It contains the boosters, the feature order and categorical vocabulary used at training time, the training window, feature importance, per-series metadata, the feature rows for the 28 days after training ends (built by `build_features` with the same SQL as the training features), the recent daily data used by the what-if and history endpoints, and the per-series results of the saved backtest. `train_final --data-only` refreshes that data without retraining.
 
 Browsers may call the API from the origins listed in `DEMANDBENCH_CORS_ORIGINS` (comma-separated; default `http://localhost:5173,http://127.0.0.1:5173`, the Vite dev server). Add a deployed frontend's origin there; no code change is needed.
 
@@ -111,10 +120,20 @@ The React dashboard in `frontend/` calls the API directly (`VITE_API_BASE_URL`, 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm run check      # lint (oxlint), typecheck (tsc), tests (Vitest)
 ```
 
-The tests mock the API with MSW using responses shaped like the real endpoints, so they need neither the API nor the data.
+See [frontend/README.md](frontend/README.md) for its structure, scripts and tests.
+
+## Tests
+
+Backend, from `backend/`. The tests import the modelling and serving code, so install all extras (after `uv sync --extra modeling` alone, FastAPI is missing and the API tests fail to import). They run on small synthetic data; a few extra API checks run against the real model bundle when `artifacts/lightgbm/` exists and are skipped otherwise.
+
+```bash
+uv sync --all-extras
+uv run pytest
+```
+
+Dashboard, from `frontend/`: `npm run check` runs lint (oxlint), typecheck (tsc) and tests (Vitest). The tests mock the API with MSW, so they need neither the API nor the data.
 
 ## Deployment
 
