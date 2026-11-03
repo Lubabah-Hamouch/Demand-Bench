@@ -6,6 +6,16 @@ For any of the 30,490 item/store series, the dashboard shows the next four weeks
 
 **Live demo:** https://demand-bench.onrender.com (the API runs on Render's free tier, so after a quiet period the first load can take up to a minute while it wakes up)
 
+## Results
+
+WAPE (lower is better) from the 5-fold rolling-origin backtest, January to May 2016. Prophet was run only on the 200-series stratified sample, so compare it only with the other models' figures on that sample.
+
+| Model | Series evaluated | WAPE | Seasonal naive WAPE (same series) |
+|---|---|---|---|
+| LightGBM (global, Tweedie) | all 30,490 | **0.755** | 0.916 |
+| LightGBM (global, Tweedie) | 200-series sample | **0.794** | 0.976 |
+| Prophet (per series) | 200-series sample | 0.825 | 0.976 |
+
 ![The dashboard for one series: the four-week forecast headline, the scenario controls, and daily sales with the forecast and its likely range](docs/screenshots/dashboard.png)
 
 ![A what-if scenario: a 20% price cut raises the four-week forecast by 11.3%, and the chart shows the scenario forecast against the baseline](docs/screenshots/scenario.png)
